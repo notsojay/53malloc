@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
 /*
  * The allocator MUST store the head of its free list in this variable. 
  * Doing so will make it accessible via the extern keyword.
@@ -23,6 +24,7 @@ ics_free_header *freelist_next = NULL;
 unsigned int pagesCount = 0;
 
 ics_header *prologue = NULL;
+
 
 /*
  * This is your implementation of malloc. It acquires uninitialized memory from  

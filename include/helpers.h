@@ -1,7 +1,9 @@
 #ifndef HELPERS_H
 #define HELPERS_H
 
+
 #include "icsmm.h"
+
 
 int8_t initHeap();
 
@@ -32,5 +34,6 @@ ics_free_header* findBlockInFreelist(ics_free_header *block);
 int8_t checkAdjBlockAvailability(ics_free_header *block, ics_footer *footer);
 
 void insertInOrderToFreelist(ics_free_header *block);
+
 
 #endif

@@ -1,10 +1,12 @@
 #ifndef ICSMM_H
 #define ICSMM_H
 
+
 #include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
 
 #define HEADER_MAGIC 0x0badbee5UL
 #define FOOTER_MAGIC 0xfaceba5eUL
@@ -93,5 +95,6 @@ void ics_freelist_print_compact();
 int ics_header_print_compact(void *header);
 
 int ics_payload_print_compact(void *payload);
+
 
 #endif

@@ -64,6 +64,8 @@ int8_t coalesceBothBlocks(ics_free_header **currBlock, ics_free_header *prevBloc
 
 ics_free_header* findBlockInFreelist(ics_free_header *block);
 
+int8_t checkAdjBlockAvailability(ics_free_header *block, ics_footer *footer);
+
 void insertInOrderToFreelist(ics_free_header *block);
 
 ics_footer* getFooter(ics_free_header *block);

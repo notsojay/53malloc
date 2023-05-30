@@ -235,20 +235,10 @@ coalesceBlocks(ics_free_header **currBlock)
         else nextBlock = NULL;
     }
 
-    if( prevFooter && prevBlock &&
-        !IS_ALLOCATED(prevFooter->block_size, prevFooter->requested_size) && 
-        !IS_ALLOCATED(prevBlock->header.block_size, prevBlock->header.requested_size) )
-    {
-        isPrevFree = 1;
-    }
-    if( nextFooter && nextBlock &&
-        !IS_ALLOCATED(nextFooter->block_size, nextFooter->requested_size) && 
-        !IS_ALLOCATED(nextBlock->header.block_size, nextBlock->header.requested_size))
-    {
-        isNextFree = 1;
-    }
+    isPrevFree = checkAdjBlockAvailability(prevBlock, prevFooter);
+    isNextFree = checkAdjBlockAvailability(nextBlock, nextFooter);
 
-    if(isPrevFree && isNextFree)
+    if(isPrevFree != -1 && isNextFree != -1)
     {
         if( findBlockInFreelist(prevBlock) == NULL ) return -1;
         if( findBlockInFreelist(nextBlock) == NULL ) return -1;
@@ -258,14 +248,14 @@ coalesceBlocks(ics_free_header **currBlock)
 
         return coalesceBothBlocks(currBlock, prevBlock, nextBlock);
     }
-    else if(isPrevFree)
+    else if(isPrevFree != -1)
     {
         if( findBlockInFreelist(prevBlock) == NULL ) return -1;
         if(prevBlock == freelist_head) freelist_head = freelist_head->next;
 
         return coalescePrevBlock(currBlock, prevBlock);
     }
-    else if(isNextFree)
+    else if(isNextFree != -1)
     {
         if( findBlockInFreelist(nextBlock) == NULL ) return -1;
         if(nextBlock == freelist_head) freelist_head = freelist_head->next;
@@ -322,6 +312,18 @@ findBlockInFreelist(ics_free_header *block)
     }
 
     return current;
+}
+
+int8_t
+checkAdjBlockAvailability(ics_free_header *block, ics_footer *footer)
+{
+     if( block && footer &&
+        !IS_ALLOCATED(footer->block_size, footer->requested_size) && 
+        !IS_ALLOCATED(block->header.block_size, block->header.requested_size) )
+    {
+        return 1;
+    }
+    return -1;
 }
 
 void 

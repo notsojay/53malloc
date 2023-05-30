@@ -18,6 +18,13 @@ ics_free_header *freelist_head = NULL;
 ics_free_header *freelist_next = NULL;
 
 /*
+ * Used to record the number of memory page requests.
+ */
+unsigned int pagesCount = 0;
+
+ics_header *prologue = NULL;
+
+/*
  * This is your implementation of malloc. It acquires uninitialized memory from  
  * ics_inc_brk() that is 16-byte aligned, as needed.
  *
@@ -88,18 +95,16 @@ ics_free(void *ptr)
 
     if(!ptr) return errno = EINVAL, -1;
 
-    block = GET_HEADER(ptr);
-    footer = GET_FOOTER(block, SET_FREE_FLAG(block->header.block_size));
+    block = GET_CURR_HEADER(ptr);
+    footer = GET_CURR_FOOTER(block, CLEAR_ALLOCATED_FLAG(block->header.block_size));
     if(isBlockValid(block, footer) == -1) return errno = EINVAL, -1;
 
-    block->header.block_size = SET_FREE_FLAG(block->header.block_size);
+    block->header.block_size = CLEAR_ALLOCATED_FLAG(block->header.block_size);
     block->header.requested_size = 0;
     block->next = NULL;
     block->prev = NULL;
 
-    if( coalesceBlocks(&block) == -1 ) return errno = ENOMEM, -1;
-
-    footer = getFooter(block);
+    if( coalesceBlocks(&block, &footer) == -1 ) return errno = ENOMEM, -1;
 
     insertInOrderToFreelist(block);
 
@@ -133,7 +138,7 @@ ics_realloc(void *ptr, size_t size)
     if(!ptr) return ics_malloc(size);
     if(size == 0) return ics_free(ptr), NULL;
 
-    oldBlock = GET_HEADER(ptr);
+    oldBlock = GET_CURR_HEADER(ptr);
     oldPlayloadSize = oldBlock->header.block_size - HEADER_SIZE - FOOTER_SIZE; // When copying the old data to the new memory block, only the payload part is to be copied, because the header and footer may be different in the new memory block.
 
     if(oldPlayloadSize == size) return ptr;
@@ -145,6 +150,6 @@ ics_realloc(void *ptr, size_t size)
         
     newPtr = newBlock;
     ics_free(ptr);
-    
+
     return newPtr;
 }

@@ -1,12 +1,3 @@
-/**
- * === DO NOT MODIFY THIS FILE ===
- * If you need some other prototypes or constants in a header, please put them in
- * helpers.h
- *
- * When we grade, we will be replacing this file with our own copy.
- * You have been warned.
- * === DO NOT MODIFY THIS FILE ===
- */
 #ifndef ICSMM_H
 #define ICSMM_H
 
@@ -22,6 +13,35 @@
 #define HID_SIZE_BITS 32
 #define BLOCK_SIZE_BITS 16
 #define FID_SIZE_BITS 32
+
+#define ALIGNMENT 16
+#define MIN_BLOCK_SIZE 32
+
+#define MAX_PAGES 5
+#define PAGE_SIZE 4096
+
+#define PROLOGUE_SIZE sizeof(ics_header)
+#define EPILOGUE_SIZE sizeof(ics_footer)
+#define GET_EPILOGUE_ADDR(newPageStart) ( (ics_footer*)(newPageStart + PAGE_SIZE - EPILOGUE_SIZE) )
+
+#define HEADER_SIZE sizeof(ics_header)
+#define FOOTER_SIZE sizeof(ics_footer)
+#define CALC_ACTUAL_BLOCK_SIZE(size) ((size < ALIGNMENT) ? (ALIGNMENT << 1) : (((size + HEADER_SIZE + FOOTER_SIZE + ALIGNMENT - 1) >> 4) << 4))
+
+#define SET_ALLOCATED_FLAG(blockSize) (blockSize | 0x1)
+#define CLEAR_ALLOCATED_FLAG(blockSize) (blockSize & ~0x1)
+#define IS_ALLOCATED(blockSize, requestedSize) ( ((blockSize & 0x1) == 1) && (requestedSize != 0) )
+
+#define GET_CURR_HEADER(currPlayload) ( (ics_free_header*)((char*)(currPlayload) - HEADER_SIZE) )
+#define GET_CURR_PLAYLOAD(currHeader) ( (void*)((char*)(currHeader) + HEADER_SIZE) )
+#define GET_CURR_FOOTER(currHeader, currBlockSize) ( (ics_footer*)((char*)(currHeader) + currBlockSize - FOOTER_SIZE) )
+
+#define GET_NEXT_HEADER(currHeader, currBlockSize) ( (ics_free_header*)((char*)(currHeader) + currBlockSize) )
+#define GET_NEXT_FOOTER(nextHeader, nextBlockSize) ( (ics_footer*)((char*)(nextHeader) + nextBlockSize - FOOTER_SIZE) )
+
+#define GET_PREV_HEADER(prevFooter, prevBlockSize) ( (ics_free_header*)((char*)(prevFooter) - prevBlockSize + HEADER_SIZE) )
+#define GET_PREV_FOOTER(currHeader) ( (ics_footer*)((char*)(currHeader) - FOOTER_SIZE) )
+
 
 typedef struct __attribute__((__packed__)) {
     uint64_t block_size: BLOCK_SIZE_BITS;
@@ -41,8 +61,12 @@ typedef struct __attribute__((__packed__)) ics_footer {
     uint64_t requested_size: REQUEST_SIZE_BITS;
 } ics_footer;
 
+
 extern ics_free_header *freelist_head;
 extern ics_free_header *freelist_next;
+extern unsigned int pagesCount;
+extern ics_header *prologue;
+
 
 void *ics_malloc(size_t size);
 

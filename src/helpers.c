@@ -1,13 +1,6 @@
 #include "helpers.h"
 #include "debug.h"
 
-/*
- * Used to record the number of memory page requests.
- */
-unsigned int pagesCount = 0;
-
-ics_header *prologue = NULL;
-
 int8_t
 initHeap() 
 {
@@ -36,12 +29,22 @@ initHeap()
     freelist_head->next = NULL;
     freelist_head->prev = NULL;
 
-    footer = getFooter(freelist_head);
+    footer = initFooter(freelist_head);
     (void)footer;
 
     freelist_next = freelist_head;
 
     return 1;
+}
+
+ics_footer*
+initFooter(ics_free_header *block)
+{
+    ics_footer *footer = GET_CURR_FOOTER(block, CLEAR_ALLOCATED_FLAG(block->header.block_size));
+    footer->block_size = block->header.block_size;
+    footer->fid = FOOTER_MAGIC;
+    footer->requested_size = block->header.requested_size;
+    return footer;
 }
 
 ics_free_header*
@@ -111,7 +114,7 @@ extendHeap(size_t requestedSize)
     }
     freelist_tail->header.block_size = newFreeBlockSize;
 
-    newFooter = getFooter(freelist_tail);
+    newFooter = initFooter(freelist_tail);
     (void)newFooter;
 
     newEpilogue = GET_EPILOGUE_ADDR(newPageStart);
@@ -125,9 +128,9 @@ extendHeap(size_t requestedSize)
 ics_free_header* 
 getFreelistTail() 
 {
-    ics_free_header *freelist_tail = freelist_head;
-
     if(!freelist_head) return NULL;
+
+    ics_free_header *freelist_tail = freelist_head;
 
     while(freelist_tail->next) 
     {
@@ -148,7 +151,7 @@ splitBlock(ics_free_header *targetBlock, size_t blockSize)
     newBlock->header.hid = HEADER_MAGIC;
     newBlock->header.requested_size = 0;
 
-    newBlockFooter = getFooter(newBlock);
+    newBlockFooter = initFooter(newBlock);
     (void)newBlockFooter;
 
     newBlock->next = targetBlock->next;
@@ -166,7 +169,7 @@ allocateBlock(ics_free_header *targetBlock, size_t blockSize, size_t requestedSi
     targetBlock->header.block_size = SET_ALLOCATED_FLAG(targetBlock->header.block_size);
     targetBlock->header.requested_size = requestedSize;
 
-    targetBlockFooter = getFooter(targetBlock);
+    targetBlockFooter = initFooter(targetBlock);
     (void)targetBlockFooter;
 
     if(targetBlock == freelist_head) freelist_head = targetBlock->next;
@@ -179,7 +182,7 @@ allocateBlock(ics_free_header *targetBlock, size_t blockSize, size_t requestedSi
     targetBlock->next = NULL;
     targetBlock->prev = NULL;
     
-    return GET_PLAYLOAD(targetBlock);
+    return GET_CURR_PLAYLOAD(targetBlock);
 }
 
 int8_t
@@ -208,7 +211,7 @@ isInHeap(char *block)
 }
 
 int8_t
-coalesceBlocks(ics_free_header **currBlock)
+coalesceBlocks(ics_free_header **currBlock, ics_footer **currFooter)
 {
     ics_footer *prevFooter = NULL, *nextFooter = NULL;
     ics_free_header *prevBlock = NULL, *nextBlock = NULL;
@@ -219,7 +222,7 @@ coalesceBlocks(ics_free_header **currBlock)
     if(isInHeap(temp) == 1) 
     {
         prevFooter = (ics_footer*)temp;
-        temp = (char*)GET_PREV_HEADER(prevFooter, SET_FREE_FLAG(prevFooter->block_size));
+        temp = (char*)GET_PREV_HEADER(prevFooter, CLEAR_ALLOCATED_FLAG(prevFooter->block_size));
 
         if(isInHeap(temp) == 1) prevBlock = (ics_free_header*)temp;
         else prevFooter = NULL;
@@ -229,7 +232,7 @@ coalesceBlocks(ics_free_header **currBlock)
     if(isInHeap(temp) == 1) 
     {
         nextBlock = (ics_free_header*)temp;
-        temp = (char*)GET_NEXT_FOOTER(nextBlock, SET_FREE_FLAG(nextBlock->header.block_size));
+        temp = (char*)GET_NEXT_FOOTER(nextBlock, CLEAR_ALLOCATED_FLAG(nextBlock->header.block_size));
 
         if(isInHeap(temp) == 1) nextFooter = (ics_footer*)temp;
         else nextBlock = NULL;
@@ -240,34 +243,37 @@ coalesceBlocks(ics_free_header **currBlock)
 
     if(isPrevFree != -1 && isNextFree != -1)
     {
-        if( findBlockInFreelist(prevBlock) == NULL ) return -1;
-        if( findBlockInFreelist(nextBlock) == NULL ) return -1;
+        if( !findBlockInFreelist(prevBlock) ) return -1;
+        if( !findBlockInFreelist(nextBlock) ) return -1;
         if(prevBlock == freelist_head) freelist_head = freelist_head->next;
         if(nextBlock == freelist_head) freelist_head = freelist_head->next;
         if(freelist_next == nextBlock) freelist_next = prevBlock;
 
-        return coalesceBothBlocks(currBlock, prevBlock, nextBlock);
+        coalescePrevBlock(currBlock, prevBlock);
+        coalesceNextBlock(currBlock, nextBlock);
     }
     else if(isPrevFree != -1)
     {
-        if( findBlockInFreelist(prevBlock) == NULL ) return -1;
+        if( !findBlockInFreelist(prevBlock) ) return -1;
         if(prevBlock == freelist_head) freelist_head = freelist_head->next;
 
-        return coalescePrevBlock(currBlock, prevBlock);
+        coalescePrevBlock(currBlock, prevBlock);
     }
     else if(isNextFree != -1)
     {
-        if( findBlockInFreelist(nextBlock) == NULL ) return -1;
+        if( !findBlockInFreelist(nextBlock) ) return -1;
         if(nextBlock == freelist_head) freelist_head = freelist_head->next;
         if(freelist_next == nextBlock) freelist_next = *currBlock;
 
-        return coalesceNextBlock(currBlock, nextBlock);
+        coalesceNextBlock(currBlock, nextBlock);
     }
+
+    *currFooter = initFooter(*currBlock);
 
     return 1;
 }
 
-int8_t
+void
 coalescePrevBlock(ics_free_header **currBlock, ics_free_header *prevBlock)
 {
     if(prevBlock->prev) prevBlock->prev->next = prevBlock->next;
@@ -277,11 +283,9 @@ coalescePrevBlock(ics_free_header **currBlock, ics_free_header *prevBlock)
 
     prevBlock->header.block_size += (*currBlock)->header.block_size;
     *currBlock = prevBlock;
-
-    return 1;
 }
 
-int8_t
+void
 coalesceNextBlock(ics_free_header **currBlock, ics_free_header *nextBlock)
 {
     if(nextBlock->prev) nextBlock->prev->next = nextBlock->next;
@@ -290,13 +294,6 @@ coalesceNextBlock(ics_free_header **currBlock, ics_free_header *nextBlock)
     nextBlock->next = NULL;
 
     (*currBlock)->header.block_size += nextBlock->header.block_size;
-    
-    return 1;
-}
-
-int8_t coalesceBothBlocks(ics_free_header **currBlock, ics_free_header *prevBlock, ics_free_header *nextBlock)
-{
-    return (coalescePrevBlock(currBlock, prevBlock) != -1 && coalesceNextBlock(currBlock, nextBlock) != -1) ? 1 : -1;
 }
 
 ics_free_header*
@@ -366,14 +363,4 @@ insertInOrderToFreelist(ics_free_header *block)
         }
         current = current->next;
     }
-}
-
-ics_footer*
-getFooter(ics_free_header *block)
-{
-    ics_footer *footer = GET_FOOTER(block, SET_FREE_FLAG(block->header.block_size));
-    footer->block_size = block->header.block_size;
-    footer->fid = FOOTER_MAGIC;
-    footer->requested_size = block->header.requested_size;
-    return footer;
 }

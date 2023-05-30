@@ -269,56 +269,33 @@ void test9() {
   void *ptr10 = ics_malloc(797);
   void *ptr11 = ics_malloc(324);
   void *ptr12 = ics_malloc(1800);
-  ics_freelist_print();
-  press_to_cont();
+
   
   // Newly allocated blocks are tested
   ics_free(ptr11);
   ics_free(ptr9);
   ics_free(ptr5);
   ics_free(ptr7);
-  ics_freelist_print();
-  printf("\n");
-  press_to_cont();
-  
+
   // Free list is printed and tested
   void *ptr13 = ics_realloc(ptr3, 500);
-  ics_freelist_print();
-  ics_payload_print((void*)ptr13);
-  printf("\n");
-  press_to_cont();
+
   
   void *ptr14 = ics_realloc(ptr2, 100);
-  ics_freelist_print();
-  ics_payload_print((void*)ptr14);
-  printf("\n");
-  press_to_cont();
+
   
   void *ptr15 = ics_realloc(ptr1, 16);
-  ics_freelist_print();
-  ics_payload_print((void*)ptr15);
-  printf("\n");
-  press_to_cont();
+
   
   void *ptr16 = ics_realloc(ptr0, 600);
-  ics_freelist_print();
-  ics_payload_print((void*)ptr16);
-  printf("\n");
-  press_to_cont();
+
   
   // Newly allocated blocks are tested
   // Free list is printed and tested
   void *ptr17 = ics_malloc(64);
-  ics_freelist_print();
-  ics_payload_print((void*)ptr17);
-  printf("\n");
-  press_to_cont();
+
   
   void *ptr18 = ics_malloc(300);
-  ics_freelist_print();
-  ics_payload_print((void*)ptr18);
-  printf("\n");
-  press_to_cont();
   
   void *ptr19 = ics_malloc(150);
   ics_freelist_print();

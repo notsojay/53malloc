@@ -250,14 +250,27 @@ coalesceBlocks(ics_free_header **currBlock)
 
     if(isPrevFree && isNextFree)
     {
+        if( findBlockInFreelist(prevBlock) == NULL ) return -1;
+        if( findBlockInFreelist(nextBlock) == NULL ) return -1;
+        if(prevBlock == freelist_head) freelist_head = freelist_head->next;
+        if(nextBlock == freelist_head) freelist_head = freelist_head->next;
+        if(freelist_next == nextBlock) freelist_next = prevBlock;
+
         return coalesceBothBlocks(currBlock, prevBlock, nextBlock);
     }
     else if(isPrevFree)
     {
+        if( findBlockInFreelist(prevBlock) == NULL ) return -1;
+        if(prevBlock == freelist_head) freelist_head = freelist_head->next;
+
         return coalescePrevBlock(currBlock, prevBlock);
     }
     else if(isNextFree)
     {
+        if( findBlockInFreelist(nextBlock) == NULL ) return -1;
+        if(nextBlock == freelist_head) freelist_head = freelist_head->next;
+        if(freelist_next == nextBlock) freelist_next = *currBlock;
+
         return coalesceNextBlock(currBlock, nextBlock);
     }
 
@@ -267,10 +280,6 @@ coalesceBlocks(ics_free_header **currBlock)
 int8_t
 coalescePrevBlock(ics_free_header **currBlock, ics_free_header *prevBlock)
 {
-    if( findBlockInFreelist(prevBlock) == NULL ) return -1;
-
-    if(prevBlock == freelist_head) freelist_head = freelist_head->next;
-
     if(prevBlock->prev) prevBlock->prev->next = prevBlock->next;
     if(prevBlock->next) prevBlock->next->prev = prevBlock->prev;
     prevBlock->prev = NULL;
@@ -285,11 +294,6 @@ coalescePrevBlock(ics_free_header **currBlock, ics_free_header *prevBlock)
 int8_t
 coalesceNextBlock(ics_free_header **currBlock, ics_free_header *nextBlock)
 {
-    if( findBlockInFreelist(nextBlock) == NULL ) return -1;
-
-    if(nextBlock == freelist_head) freelist_head = freelist_head->next;
-    if(freelist_next == nextBlock) freelist_next = *currBlock;
-
     if(nextBlock->prev) nextBlock->prev->next = nextBlock->next;
     if(nextBlock->next) nextBlock->next->prev = nextBlock->prev;
     nextBlock->prev = NULL;
@@ -302,27 +306,7 @@ coalesceNextBlock(ics_free_header **currBlock, ics_free_header *nextBlock)
 
 int8_t coalesceBothBlocks(ics_free_header **currBlock, ics_free_header *prevBlock, ics_free_header *nextBlock)
 {
-    if( findBlockInFreelist(prevBlock) == NULL ) return -1;
-    if( findBlockInFreelist(nextBlock) == NULL ) return -1;
-
-    if(prevBlock == freelist_head) freelist_head = freelist_head->next;
-    if(nextBlock == freelist_head) freelist_head = freelist_head->next;
-    if(freelist_next == nextBlock) freelist_next = prevBlock;
-
-    if(nextBlock->prev) nextBlock->prev->next = nextBlock->next;
-    if(nextBlock->next) nextBlock->next->prev = nextBlock->prev;
-    nextBlock->prev = NULL;
-    nextBlock->next = NULL;
-    (*currBlock)->header.block_size += nextBlock->header.block_size;
-
-    if(prevBlock->prev) prevBlock->prev->next = prevBlock->next;
-    if(prevBlock->next) prevBlock->next->prev = prevBlock->prev;
-    prevBlock->prev = NULL;
-    prevBlock->next = NULL;
-    prevBlock->header.block_size += (*currBlock)->header.block_size;
-    *currBlock = prevBlock;
-
-    return 1;
+    return (coalescePrevBlock(currBlock, prevBlock) != -1 && coalesceNextBlock(currBlock, nextBlock) != -1) ? 1 : -1;
 }
 
 ics_free_header*

@@ -32,7 +32,7 @@
 
 * To use this project, you need to include the header files in your C program. You can then use the ics_malloc() function to allocate memory, similar to how you would use the standard malloc() function. Remember to use ics_free() to free up the memory when it's no longer needed.
 * For debugging, make use of the functions and macros provided in debug.h.
-* * Please note that the exact usage and compilation instructions may depend on your specific project structure and requirements.
+* Please note that the exact usage and compilation instructions may depend on your specific project structure and requirements.
 
 ## Contributions
 
